@@ -8,14 +8,14 @@ st.markdown("""
 <style>
     .stApp { background-color: #f5f5f0 !important; }
     h1, h2, h3 { color: #4a6741 !important; }
-    .stButton>button { background-color: #8faa8b !important; color: white !important; border: none; }
+    .stButton>button { background-color: #c8b89a !important; color: white !important; border: none; }
     .stTextArea textarea { border-color: #8faa8b !important; }
 </style>
 """, unsafe_allow_html=True)
 
 st.title("Pipeline de Pré-Processamento de Texto")
 st.write("Trabalho Prático 2 - Laboratório de Programação")
-st.divider() 
+st.divider()
 
 try:
     import fitz
