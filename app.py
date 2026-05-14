@@ -4,7 +4,7 @@ import re
 
 st.title("Pipeline de Pré-Processamento de Texto")
 st.write("Trabalho Prático 2 - Laboratório de Programação")
-st.divider()
+st.divider() 
 
 try:
     import fitz
