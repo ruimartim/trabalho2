@@ -159,27 +159,60 @@ if "bruto" in st.session_state:
                 with t2:
                     st.text_area("", gerar_prompt(chunk, idioma, tipo_prompt), height=180, key=f"p{i}")
 
-st.header("Etapa 4 - Enviar para o Model")
+
+st.header("Etapa 4 - Enviar para o Modelo")
 
 if st.button("Enviar para o SLM"):
     import requests
     respostas = []
-    with st.spinner("A processar..."):
-        for i, chunk in enumerate(chunks):
-            prompt = gerar_prompt(chunk, idioma, tipo_prompt)
-            try:
-                resposta = requests.post(
-                    "https://reality.utad.net/slm",
-                    json={
-                        "model": "llama-3.2-1b-instruct",
-                        "messages": [{"role": "user", "content": prompt}]
-                    }
-                )
-                texto_resposta = resposta.json()["choices"][0]["message"]["content"]
-                respostas.append(texto_resposta)
-            except Exception as e:
-                respostas.append(f"ERRO: {str(e)}")
-
+    cancelado = False
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        parar = st.button("⏹ Cancelar")
+    
+    progress = st.progress(0)
+    status = st.empty()
+    
+    for i, chunk in enumerate(chunks):
+        if parar:
+            cancelado = True
+            st.warning("Operação cancelada pelo utilizador.")
+            break
+            
+        status.write(f"A processar chunk {i+1} de {len(chunks)}...")
+        progress.progress((i+1) / len(chunks))
+        
+        prompt = gerar_prompt(chunk, idioma, tipo_prompt)
+        try:
+            resposta = requests.post(
+                "https://reality.utad.net/slm",
+                json={
+                    "model": "llama-3.2-1b-instruct",
+                    "messages": [{"role": "user", "content": prompt}]
+                },
+                timeout=300  # 5 minutos por chunk
+            )
+            texto_resposta = resposta.json()["choices"][0]["message"]["content"]
+            respostas.append(texto_resposta)
+        except requests.exceptions.Timeout:
+            st.warning(f"Chunk {i+1} demorou mais de 5 minutos.")
+            opcao = st.radio(
+                "O que queres fazer?",
+                ["Continuar para o próximo chunk", "Terminar aqui"],
+                key=f"opcao_{i}"
+            )
+            if opcao == "Terminar aqui":
+                cancelado = True
+                break
+            else:
+                respostas.append("(chunk ignorado por timeout)")
+        except Exception as e:
+            respostas.append(f"ERRO: {str(e)}")
+    
+    if not cancelado:
+        status.write("Concluído!")
+    
     for i, r in enumerate(respostas):
         with st.expander(f"Resposta chunk {i+1}"):
             st.write(r)
