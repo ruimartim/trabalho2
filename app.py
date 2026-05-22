@@ -159,5 +159,30 @@ if "bruto" in st.session_state:
                 with t2:
                     st.text_area("", gerar_prompt(chunk, idioma, tipo_prompt), height=180, key=f"p{i}")
 
+st.header("Etapa 4 - Enviar para o Modelo")
+
+if st.button("Enviar para o SLM"):
+    import requests
+    respostas = []
+    with st.spinner("A processar..."):
+        for i, chunk in enumerate(chunks):
+            prompt = gerar_prompt(chunk, idioma, tipo_prompt)
+            try:
+                resposta = requests.post(
+                    "https://reality.utad.net/slm",
+                    json={
+                        "model": "llama-3.2-1b-instruct",
+                        "messages": [{"role": "user", "content": prompt}]
+                    }
+                )
+                texto_resposta = resposta.json()["choices"][0]["message"]["content"]
+                respostas.append(texto_resposta)
+            except Exception as e:
+                respostas.append(f"ERRO: {str(e)}")
+
+    for i, r in enumerate(respostas):
+        with st.expander(f"Resposta chunk {i+1}"):
+            st.write(r)
+            
         st.divider()
         st.download_button("Descarregar texto limpo", st.session_state["limpo"].encode(), "texto_limpo.txt")
