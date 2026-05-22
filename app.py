@@ -159,7 +159,7 @@ if "bruto" in st.session_state:
                 with t2:
                     st.text_area("", gerar_prompt(chunk, idioma, tipo_prompt), height=180, key=f"p{i}")
 
-st.header("Etapa 4 - Enviar para o Modelo")
+st.header("Etapa 4 - Enviar para o Model")
 
 if st.button("Enviar para o SLM"):
     import requests
@@ -183,6 +183,6 @@ if st.button("Enviar para o SLM"):
     for i, r in enumerate(respostas):
         with st.expander(f"Resposta chunk {i+1}"):
             st.write(r)
-            
+
         st.divider()
         st.download_button("Descarregar texto limpo", st.session_state["limpo"].encode(), "texto_limpo.txt")
