@@ -217,5 +217,35 @@ if st.button("Enviar para o SLM"):
         with st.expander(f"Resposta chunk {i+1}"):
             st.write(r)
 
+st.header("Etapa 5 - Relatório")
+
+if st.button("Gerar Relatório"):
+    relatorio = f"""
+Parâmetros da pipeline:
+- Remover artefactos: {cfg['artefactos']}
+- Corrigir encoding: {cfg['encoding']}
+- Remover cabeçalhos: {cfg['cabecalhos']}
+- Corrigir quebras de linha: {cfg['quebras']}
+- Reconstruir parágrafos: {cfg['paragrafos']}
+- Normalizar espaços: {cfg['espacos']}
+- Tamanho do chunk: {tamanho_chunk}
+- Tipo de prompt: {tipo_prompt}
+- Idioma: {idioma}
+
+Texto antes:
+{st.session_state['bruto']}
+
+Texto depois:
+{st.session_state['limpo']}
+
+Avaliação:
+- Caracteres antes: {len(st.session_state['bruto'])}
+- Caracteres depois: {len(st.session_state['limpo'])}
+- Removidos: {len(st.session_state['bruto']) - len(st.session_state['limpo'])}
+- Chunks: {len(chunks)}
+"""
+    st.text_area("Relatório", relatorio, height=300)
+    st.download_button("Descarregar Relatório", relatorio.encode(), "relatorio.txt")
+
         st.divider()
         st.download_button("Descarregar texto limpo", st.session_state["limpo"].encode(), "texto_limpo.txt")
