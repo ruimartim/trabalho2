@@ -103,6 +103,7 @@ def gerar_prompt(chunk, idioma, tipo):
     }
     return tipos[tipo]
 
+# Sidebar
 st.sidebar.header("Opções da Pipeline")
 cfg = {
     "artefactos": st.sidebar.checkbox("Remover artefactos", value=True),
@@ -116,12 +117,12 @@ st.sidebar.divider()
 tamanho_chunk = st.sidebar.slider("Tamanho do chunk", 300, 3000, 1000, 100)
 tipo_prompt = st.sidebar.selectbox("Tipo de prompt", ["Correção gramatical", "Resumo", "Estruturação"])
 
+# Etapa 1
 st.header("Etapa 1 - Upload de Ficheiro")
 ficheiro = st.file_uploader("Escolhe um ficheiro PDF, DOCX ou TXT", type=["pdf", "docx", "txt"])
 
 if ficheiro:
-    texto_bruto = extrair_texto(ficheiro)
-    st.session_state["bruto"] = texto_bruto
+    st.session_state["bruto"] = extrair_texto(ficheiro)
     st.success("Ficheiro carregado com sucesso!")
 
 if "bruto" in st.session_state:
@@ -129,6 +130,7 @@ if "bruto" in st.session_state:
     st.write(f"Caracteres: {len(st.session_state['bruto'])} | Palavras: {len(st.session_state['bruto'].split())}")
     st.divider()
 
+    # Etapa 2
     st.header("Etapa 2 - Limpeza do Texto")
     if st.button("Executar Limpeza"):
         st.session_state["limpo"] = limpar_texto(st.session_state["bruto"], cfg)
@@ -145,7 +147,8 @@ if "bruto" in st.session_state:
             st.write(f"{len(st.session_state['limpo'])} caracteres")
         st.divider()
 
-        st.header("Etapa 3 - Preparação para o Model")
+        # Etapa 3
+        st.header("Etapa 3 - Preparação para o Modelo")
         idioma = detectar_idioma(st.session_state["limpo"])
         st.write(f"Idioma detetado: **{idioma}**")
         chunks = dividir_chunks(st.session_state["limpo"], tamanho_chunk)
@@ -159,69 +162,63 @@ if "bruto" in st.session_state:
                 with t2:
                     st.text_area("", gerar_prompt(chunk, idioma, tipo_prompt), height=180, key=f"p{i}")
 
+        st.divider()
 
-            st.header("Etapa 4 - Enviar para o Model")
+        # Etapa 4
+        st.header("Etapa 4 - Enviar para o Modelo")
+        if st.button("Enviar para o SLM"):
+            import requests
+            respostas = []
+            cancelado = False
+            progress = st.progress(0)
+            status = st.empty()
+            parar = st.button("Cancelar")
 
-            if st.button("Enviar para o SLM"):
-                import requests
-                respostas = []
-                cancelado = False
-                
-                col1, col2 = st.columns(2)
-                with col1:
-                    parar = st.button("⏹ Cancelar")
-                
-                progress = st.progress(0)
-                status = st.empty()
-                
-                for i, chunk in enumerate(chunks):
-                    if parar:
+            for i, chunk in enumerate(chunks):
+                if parar:
+                    cancelado = True
+                    st.warning("Operação cancelada.")
+                    break
+                status.write(f"A processar chunk {i+1} de {len(chunks)}...")
+                progress.progress((i+1) / len(chunks))
+                prompt = gerar_prompt(chunk, idioma, tipo_prompt)
+                try:
+                    resposta = requests.post(
+                        "https://reality.utad.net/slm",
+                        json={
+                            "model": "llama-3.2-1b-instruct",
+                            "messages": [{"role": "user", "content": prompt}]
+                        },
+                        timeout=300
+                    )
+                    texto_resposta = resposta.json()["choices"][0]["message"]["content"]
+                    respostas.append(texto_resposta)
+                except requests.exceptions.Timeout:
+                    st.warning(f"Chunk {i+1} demorou mais de 5 minutos.")
+                    opcao = st.radio("O que queres fazer?", ["Continuar", "Terminar"], key=f"opcao_{i}")
+                    if opcao == "Terminar":
                         cancelado = True
-                        st.warning("Operação cancelada pelo utilizador.")
                         break
-                        
-                    status.write(f"A processar chunk {i+1} de {len(chunks)}...")
-                    progress.progress((i+1) / len(chunks))
-                    
-                    prompt = gerar_prompt(chunk, idioma, tipo_prompt)
-                    try:
-                        resposta = requests.post(
-                            "https://reality.utad.net/slm",
-                            json={
-                                "model": "llama-3.2-1b-instruct",
-                                "messages": [{"role": "user", "content": prompt}]
-                            },
-                            timeout=300  # 5 minutos por chunk
-                        )
-                        texto_resposta = resposta.json()["choices"][0]["message"]["content"]
-                        respostas.append(texto_resposta)
-                    except requests.exceptions.Timeout:
-                        st.warning(f"Chunk {i+1} demorou mais de 5 minutos.")
-                        opcao = st.radio(
-                            "O que queres fazer?",
-                            ["Continuar para o próximo chunk", "Terminar aqui"],
-                            key=f"opcao_{i}"
-                        )
-                        if opcao == "Terminar aqui":
-                            cancelado = True
-                            break
-                        else:
-                            respostas.append("(chunk ignorado por timeout)")
-                    except Exception as e:
-                        respostas.append(f"ERRO: {str(e)}")
-                
-                if not cancelado:
-                    status.write("Concluído!")
-                
-                for i, r in enumerate(respostas):
-                    with st.expander(f"Resposta chunk {i+1}"):
-                        st.write(r)
+                    else:
+                        respostas.append("(chunk ignorado por timeout)")
+                except Exception as e:
+                    respostas.append(f"ERRO: {str(e)}")
 
-                st.header("Etapa 5 - Relatório")
+            if not cancelado:
+                status.write("Concluído!")
+            st.session_state["respostas"] = respostas
 
-if st.button("Gerar Relatório"):
-    st.session_state["relatorio"] = f"""
-Parâmetros da pipeline:
+        if "respostas" in st.session_state:
+            for i, r in enumerate(st.session_state["respostas"]):
+                with st.expander(f"Resposta chunk {i+1}"):
+                    st.write(r)
+
+        st.divider()
+
+        # Etapa 5
+        st.header("Etapa 5 - Relatório")
+        if st.button("Gerar Relatório"):
+            st.session_state["relatorio"] = f"""Parâmetros da pipeline:
 - Remover artefactos: {cfg['artefactos']}
 - Corrigir encoding: {cfg['encoding']}
 - Remover cabeçalhos: {cfg['cabecalhos']}
@@ -242,9 +239,11 @@ Avaliação:
 - Caracteres antes: {len(st.session_state['bruto'])}
 - Caracteres depois: {len(st.session_state['limpo'])}
 - Removidos: {len(st.session_state['bruto']) - len(st.session_state['limpo'])}
-- Chunks: {len(chunks)}
-"""
+- Chunks: {len(chunks)}"""
 
-if "relatorio" in st.session_state:
-    st.text_area("Relatório", st.session_state["relatorio"], height=300)
-    st.download_button("Descarregar Relatório", st.session_state["relatorio"].encode(), "relatorio.txt")
+        if "relatorio" in st.session_state:
+            st.text_area("Relatório", st.session_state["relatorio"], height=300)
+            st.download_button("Descarregar Relatório", st.session_state["relatorio"].encode(), "relatorio.txt")
+
+        st.divider()
+        st.download_button("Descarregar texto limpo", st.session_state["limpo"].encode(), "texto_limpo.txt")
