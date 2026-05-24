@@ -132,6 +132,7 @@ if "bruto" in st.session_state:
 
     # Etapa 2
     st.header("Etapa 2 - Limpeza do Texto")
+
     if st.button("Executar Limpeza"):
         st.session_state["limpo"] = limpar_texto(st.session_state["bruto"], cfg)
 
@@ -146,6 +147,7 @@ if "bruto" in st.session_state:
             st.text_area("", st.session_state["limpo"], height=200, key="depois")
             st.write(f"{len(st.session_state['limpo'])} caracteres")
         st.divider()
+
 
         # Etapa 3
         st.header("Etapa 3 - Preparação para o Modelo")
