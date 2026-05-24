@@ -145,7 +145,7 @@ if "bruto" in st.session_state:
             st.write(f"{len(st.session_state['limpo'])} caracteres")
         st.divider()
 
-        st.header("Etapa 3 - Preparação para o Modelo")
+        st.header("Etapa 3 - Preparação para o Model")
         idioma = detectar_idioma(st.session_state["limpo"])
         st.write(f"Idioma detetado: **{idioma}**")
         chunks = dividir_chunks(st.session_state["limpo"], tamanho_chunk)
@@ -160,67 +160,67 @@ if "bruto" in st.session_state:
                     st.text_area("", gerar_prompt(chunk, idioma, tipo_prompt), height=180, key=f"p{i}")
 
 
-st.header("Etapa 4 - Enviar para o Modelo")
+            st.header("Etapa 4 - Enviar para o Model")
 
-if st.button("Enviar para o SLM"):
-    import requests
-    respostas = []
-    cancelado = False
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        parar = st.button("⏹ Cancelar")
-    
-    progress = st.progress(0)
-    status = st.empty()
-    
-    for i, chunk in enumerate(chunks):
-        if parar:
-            cancelado = True
-            st.warning("Operação cancelada pelo utilizador.")
-            break
-            
-        status.write(f"A processar chunk {i+1} de {len(chunks)}...")
-        progress.progress((i+1) / len(chunks))
-        
-        prompt = gerar_prompt(chunk, idioma, tipo_prompt)
-        try:
-            resposta = requests.post(
-                "https://reality.utad.net/slm",
-                json={
-                    "model": "llama-3.2-1b-instruct",
-                    "messages": [{"role": "user", "content": prompt}]
-                },
-                timeout=300  # 5 minutos por chunk
-            )
-            texto_resposta = resposta.json()["choices"][0]["message"]["content"]
-            respostas.append(texto_resposta)
-        except requests.exceptions.Timeout:
-            st.warning(f"Chunk {i+1} demorou mais de 5 minutos.")
-            opcao = st.radio(
-                "O que queres fazer?",
-                ["Continuar para o próximo chunk", "Terminar aqui"],
-                key=f"opcao_{i}"
-            )
-            if opcao == "Terminar aqui":
-                cancelado = True
-                break
-            else:
-                respostas.append("(chunk ignorado por timeout)")
-        except Exception as e:
-            respostas.append(f"ERRO: {str(e)}")
-    
-    if not cancelado:
-        status.write("Concluído!")
-    
-    for i, r in enumerate(respostas):
-        with st.expander(f"Resposta chunk {i+1}"):
-            st.write(r)
+            if st.button("Enviar para o SLM"):
+                import requests
+                respostas = []
+                cancelado = False
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    parar = st.button("⏹ Cancelar")
+                
+                progress = st.progress(0)
+                status = st.empty()
+                
+                for i, chunk in enumerate(chunks):
+                    if parar:
+                        cancelado = True
+                        st.warning("Operação cancelada pelo utilizador.")
+                        break
+                        
+                    status.write(f"A processar chunk {i+1} de {len(chunks)}...")
+                    progress.progress((i+1) / len(chunks))
+                    
+                    prompt = gerar_prompt(chunk, idioma, tipo_prompt)
+                    try:
+                        resposta = requests.post(
+                            "https://reality.utad.net/slm",
+                            json={
+                                "model": "llama-3.2-1b-instruct",
+                                "messages": [{"role": "user", "content": prompt}]
+                            },
+                            timeout=300  # 5 minutos por chunk
+                        )
+                        texto_resposta = resposta.json()["choices"][0]["message"]["content"]
+                        respostas.append(texto_resposta)
+                    except requests.exceptions.Timeout:
+                        st.warning(f"Chunk {i+1} demorou mais de 5 minutos.")
+                        opcao = st.radio(
+                            "O que queres fazer?",
+                            ["Continuar para o próximo chunk", "Terminar aqui"],
+                            key=f"opcao_{i}"
+                        )
+                        if opcao == "Terminar aqui":
+                            cancelado = True
+                            break
+                        else:
+                            respostas.append("(chunk ignorado por timeout)")
+                    except Exception as e:
+                        respostas.append(f"ERRO: {str(e)}")
+                
+                if not cancelado:
+                    status.write("Concluído!")
+                
+                for i, r in enumerate(respostas):
+                    with st.expander(f"Resposta chunk {i+1}"):
+                        st.write(r)
 
-st.header("Etapa 5 - Relatório")
+                st.header("Etapa 5 - Relatório")
 
 if st.button("Gerar Relatório"):
-    relatorio = f"""
+    st.session_state["relatorio"] = f"""
 Parâmetros da pipeline:
 - Remover artefactos: {cfg['artefactos']}
 - Corrigir encoding: {cfg['encoding']}
@@ -244,8 +244,7 @@ Avaliação:
 - Removidos: {len(st.session_state['bruto']) - len(st.session_state['limpo'])}
 - Chunks: {len(chunks)}
 """
-    st.text_area("Relatório", relatorio, height=300)
-    st.download_button("Descarregar Relatório", relatorio.encode(), "relatorio.txt")
 
-        st.divider()
-        st.download_button("Descarregar texto limpo", st.session_state["limpo"].encode(), "texto_limpo.txt")
+if "relatorio" in st.session_state:
+    st.text_area("Relatório", st.session_state["relatorio"], height=300)
+    st.download_button("Descarregar Relatório", st.session_state["relatorio"].encode(), "relatorio.txt")
