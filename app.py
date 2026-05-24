@@ -243,7 +243,35 @@ Avaliação:
 
         if "relatorio" in st.session_state:
             st.text_area("Relatório", st.session_state["relatorio"], height=300)
-            st.download_button("Descarregar Relatório", st.session_state["relatorio"].encode(), "relatorio.txt")
+            formato = st.selectbox("Formato do relatório", ["TXT", "PDF", "DOCX"])
+
+            if formato == "TXT":
+                st.download_button("Descarregar Relatório", st.session_state["relatorio"].encode(), "relatorio.txt")
+
+            elif formato == "PDF":
+                try:
+                    from fpdf import FPDF
+                    pdf = FPDF()
+                    pdf.add_page()
+                    pdf.set_font("Helvetica", size=12)
+                    for linha in st.session_state["relatorio"].split('\n'):
+                        linha_limpa = linha.encode('latin-1', 'replace').decode('latin-1')
+                        pdf.cell(0, 10, linha_limpa, ln=True)
+                    st.download_button("Descarregar Relatório", bytes(pdf.output()), "relatorio.pdf")
+                except ImportError:
+                    st.error("Instala fpdf2 com: pip install fpdf2")
+
+            elif formato == "DOCX":
+                try:
+                    from docx import Document
+                    doc = Document()
+                    for linha in st.session_state["relatorio"].split('\n'):
+                        doc.add_paragraph(linha)
+                    buf = io.BytesIO()
+                    doc.save(buf)
+                    st.download_button("Descarregar Relatório", buf.getvalue(), "relatorio.docx")
+                except ImportError:
+                    st.error("Instala python-docx com: pip install python-docx")
 
         st.divider()
         st.download_button("Descarregar texto limpo", st.session_state["limpo"].encode(), "texto_limpo.txt")
